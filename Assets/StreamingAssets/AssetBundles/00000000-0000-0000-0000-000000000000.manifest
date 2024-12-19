@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 2400396200
+CRC: 4096085670
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: cbf489f7b5712cf9c24cb8aa03de3d2c
+    Hash: 3a7b471dac73152a9663add2fac3a457
   TypeTreeHash:
     serializedVersion: 2
-    Hash: 0f9fba26cbb38215f317d1fd6b1954a0
+    Hash: d27d605e56b00c7d193d3604b99a7461
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: cbf489f7b5712cf9c24cb8aa03de3d2c
+    Hash: 3a7b471dac73152a9663add2fac3a457
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -20,6 +20,8 @@ ClassTypes:
   Script: {instanceID: 0}
 - Class: 23
   Script: {instanceID: 0}
+- Class: 28
+  Script: {instanceID: 0}
 - Class: 33
   Script: {instanceID: 0}
 - Class: 43
@@ -28,5 +30,6 @@ ClassTypes:
   Script: {instanceID: 0}
 SerializeReferenceClassIdentifiers: []
 Assets:
+- Assets/Uploads/00000000-0000-0000-0000-000000000000/Interactables 4.mat
 - Assets/Uploads/00000000-0000-0000-0000-000000000000/Blaster.fbx
 Dependencies: []
