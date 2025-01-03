@@ -2,47 +2,57 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using UnityEditor.Build.Reporting;
 using UnityEngine;
 
 public class BatchBuild
 {
     private static string _assetBundleDirectory = "Assets/StreamingAssets/AssetBundles"; 
-    private static readonly string _configPath = "Assets/StreamingAssets/AssetBundles/AssetBundleConfig.json";
+    private static readonly string ConfigPath = "Assets/StreamingAssets/ConfigurationData/AssetBundleConfig.json";
     public static void BuildAssetBundles()
     {
         string[] args = Environment.GetCommandLineArgs();
+        string buildName = null;
         string assetsPath = null;
 
         for (int i = 0; i < args.Length; i++)
         {
-            if (args[i] == "-assetsPath" && i + 1 < args.Length)
+            if (args[i] == "-buildName" && i + 1 < args.Length)
             {
-                assetsPath = args[i + 1];
+                buildName = args[i + 1];
             }
         }
-
-        if (string.IsNullOrEmpty(assetsPath))
+        
+        if (string.IsNullOrEmpty(buildName))
         {
-            Debug.LogError("Asset bundle path is not provided. Use -assetsPath <path>.");
+            Console.WriteLine("Build name is not provided. Use -buildName <guid>.");
+            EditorApplication.Exit(1);
             return;
         }
-        
+        assetsPath = Path.Combine("Assets/Uploads", buildName);
         if (!Directory.Exists(assetsPath))
         {
-            Debug.LogError("Asset bundle directory does not exist.");
+            Console.WriteLine("Asset bundle directory does not exist.");
+            EditorApplication.Exit(1);
             return;
         }
 
         AssetBundleBuild assetBundle = new();
-        assetBundle.assetBundleName = "Assets";
+        assetBundle.assetBundleName = buildName;
         assetBundle.assetNames = GetAssets(assetsPath).ToArray();
         BuildAssetBundlesParameters buildAssetBundlesParameters = new()
         {
             outputPath = _assetBundleDirectory,
             bundleDefinitions = new[] { assetBundle },
             options = BuildAssetBundleOptions.None,
-            targetPlatform = BuildTarget.StandaloneWindows
+            targetPlatform = BuildTarget.Android
         };
+        
+        string json = "{\"buildName\":\""+buildName+"\"}";
+        using (StreamWriter writer = new StreamWriter(ConfigPath, false))
+        {
+            writer.Write(json);
+        }
         
         AssetBundleManifest manifest = BuildPipeline.BuildAssetBundles(buildAssetBundlesParameters);
         if (manifest)
@@ -50,15 +60,65 @@ public class BatchBuild
             foreach(var bundleName in manifest.GetAllAssetBundles())
             {
                 string projectRelativePath = buildAssetBundlesParameters.outputPath + "/" + bundleName;
-                Debug.Log($"Size of AssetBundle {projectRelativePath} is {new FileInfo(projectRelativePath).Length}");
+                Console.WriteLine($"Size of AssetBundle {projectRelativePath} is {new FileInfo(projectRelativePath).Length}");
             }
         }
         else
         {
-            Debug.Log("Build failed, see Console and Editor log for details");
+            Console.WriteLine("Build failed, see Console and Editor log for details");
+            EditorApplication.Exit(1);
         }
         
-        Debug.Log("AssetBundles built at: " + assetsPath);
+        Console.WriteLine("AssetBundles built at: " + _assetBundleDirectory);
+    }
+
+    public static void BuildApk()
+    {
+        string[] scenes = {
+            "Assets/Scenes/SceneWithLoader.unity"
+        };
+        string[] args = Environment.GetCommandLineArgs();
+        string buildName = null;
+        string buildPath = null;
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "-buildName" && i + 1 < args.Length)
+            {
+                buildName = args[i + 1];
+            }
+        }
+        
+        if (string.IsNullOrEmpty(buildName))
+        {
+            Debug.LogError("Build name is not provided. Use -buildName <guid>.");
+            EditorApplication.Exit(1);
+            return;
+        }
+        buildPath = Path.Combine("Builds", "Android", buildName + ".apk");
+        
+        BuildPlayerOptions buildOptions = new BuildPlayerOptions
+        {
+            scenes = scenes,
+            locationPathName = buildPath,
+            target = BuildTarget.Android,
+            options = BuildOptions.None
+        };
+        
+        PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+        PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel23; 
+        PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
+
+        BuildReport report = BuildPipeline.BuildPlayer(buildOptions);
+
+        if (report.summary.result == BuildResult.Succeeded)
+        {
+            Debug.Log("APK built successfully: " + buildPath);
+        }
+        else
+        {
+            Debug.LogError("APK build failed.");
+            EditorApplication.Exit(1);
+        }
     }
     static List<string> GetAssets(string path)
     {

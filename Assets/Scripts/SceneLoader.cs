@@ -3,13 +3,17 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using System.Threading.Tasks;
+using JetBrains.Annotations;
 using Newtonsoft.Json;
+using UnityEngine.Networking;
 
 [Serializable]
 public class Component
 {
     public string type = string.Empty;
     public string path = string.Empty;
+    public string relativePath = string.Empty;
 }
 
 [Serializable]
@@ -21,43 +25,99 @@ public class GameObjectInfo
     public float[] scale = { 1, 1, 1 };
     public List<Component> components { get; set; } = new();
 }
+[Serializable]
+public class BuildData
+{
+    public string buildName;
+}
 
 public class SceneLoader : MonoBehaviour
 {
-    public string AssetBundleName = "/AssetsEditor";
-    public string SceneBundleName = "/ScenesEditor";
-    public string DataLocation = "Assets/Uploads/Data.json";
+    [CanBeNull] private string _buildName = null;
     private string _bundlePath;
     private AssetBundle _assetBundle;
+    private string _assetData;
 
-    void Start()
+    async void Start()
     {
-        if (!File.Exists(DataLocation))
+        await GetBuildName();
+        if (String.IsNullOrEmpty(_buildName))
         {
-            Debug.LogError("Data file not found");
+            Debug.LogError("Build name is not provided.");
             return;
         }
-
-        _bundlePath = Path.Combine(Application.streamingAssetsPath, "AssetBundles", AssetBundleName);
-        _bundlePath = _bundlePath.Replace("/", @"\");
+        
+        var dataLocation = Path.Combine(Application.streamingAssetsPath, "ConfigurationData", _buildName, "Data.json");
+        
+        UnityWebRequest request = UnityWebRequest.Get(dataLocation);
+        UnityWebRequestAsyncOperation operation = request.SendWebRequest();
+        
+        while (!operation.isDone)
+        {
+            await Task.Yield();
+        }
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            Debug.Log("File exists: " + dataLocation);
+            _assetData = request.downloadHandler.text;
+        }
+        else
+        {
+            Debug.LogError("File does not exist or cannot be accessed: " + dataLocation);
+            return;
+        }
+#if UNITY_ANDROID && !UNITY_EDITOR
+        _bundlePath = $"jar:file://{Application.dataPath}!/assets/AssetBundles/{_buildName}";
+#else
+        _bundlePath = Path.Combine(Application.streamingAssetsPath, "AssetBundles", _buildName);
+#endif
         Debug.Log(_bundlePath);
         StartCoroutine(LoadAssetBundleAndObjectsToScene());
     }
 
+    async Task GetBuildName()
+    {
+        string path = Path.Combine(Application.streamingAssetsPath, "ConfigurationData", "AssetBundleConfig.json");
+        Debug.Log(path);
+        UnityWebRequest request = UnityWebRequest.Get(path);
+        UnityWebRequestAsyncOperation operation = request.SendWebRequest();
+        while (!operation.isDone)
+        {
+            await Task.Yield();
+        }
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            Debug.Log(request.downloadHandler.text);
+            var data = JsonConvert.DeserializeObject<BuildData>(request.downloadHandler.text);
+            _buildName = data?.buildName;
+        }
+        else
+        {
+            Debug.LogError("Cannot load file at " + path);
+        }
+    }
     IEnumerator LoadAssetBundleAndObjectsToScene()
     {
-        AssetBundleCreateRequest bundleLoadRequest = AssetBundle.LoadFromFileAsync(_bundlePath);
-        yield return bundleLoadRequest;
+        UnityWebRequest request = UnityWebRequestAssetBundle.GetAssetBundle(_bundlePath);
+        Debug.Log(_assetData);
+        Debug.Log(_bundlePath);
 
-        _assetBundle = bundleLoadRequest.assetBundle;
+        yield return request.SendWebRequest();
+
+        if (request.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError("Failed to load AssetBundle: " + request.error);
+            yield break;
+        }
+        
+        _assetBundle = DownloadHandlerAssetBundle.GetContent(request);
         if (_assetBundle == null)
         {
             Debug.LogError("Failed to load AssetBundle!");
             yield break;
         }
 
-        string data = File.ReadAllText(DataLocation);
-        List<GameObjectInfo> gameObjects = JsonConvert.DeserializeObject<List<GameObjectInfo>>(data);
+        List<GameObjectInfo> gameObjects = JsonConvert.DeserializeObject<List<GameObjectInfo>>(_assetData);
         foreach (var gameObject in gameObjects)
         {
             Debug.Log("Loading " + gameObject.name);
@@ -73,12 +133,10 @@ public class SceneLoader : MonoBehaviour
             };
             foreach (var component in gameObject.components)
             {
-                Debug.Log("Loading " + component.path + " of type " + component.type);
-                StartCoroutine(LoadAsset(go, component.path, component.type));
+                Debug.Log("Loading " + component.relativePath + " of type " + component.type);
+                StartCoroutine(LoadAsset(go, component.relativePath, component.type));
             }
         }
-
-        Debug.Log(data);
         _assetBundle.Unload(false);
     }
 
@@ -124,7 +182,17 @@ public class SceneLoader : MonoBehaviour
                 }
 
                 break;
-            
+            case "Prefab":
+                assetLoadRequest = _assetBundle.LoadAssetAsync<GameObject>(assetName);
+                yield return assetLoadRequest;
+
+                GameObject prefab = assetLoadRequest.asset as GameObject;
+                if (prefab != null)
+                {
+                    Instantiate(prefab, obj.transform, true);
+                }
+
+                break;
             default:
                 Debug.LogWarning($"Asset type '{assetType}' is not supported.");
                 break;
