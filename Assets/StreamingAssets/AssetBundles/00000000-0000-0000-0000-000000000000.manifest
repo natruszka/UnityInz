@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 4096085670
+CRC: 883414785
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 3a7b471dac73152a9663add2fac3a457
+    Hash: a9d5727c0be75742c638183c55b58b03
   TypeTreeHash:
     serializedVersion: 2
     Hash: d27d605e56b00c7d193d3604b99a7461
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 3a7b471dac73152a9663add2fac3a457
+    Hash: a9d5727c0be75742c638183c55b58b03
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -32,4 +32,5 @@ SerializeReferenceClassIdentifiers: []
 Assets:
 - Assets/Uploads/00000000-0000-0000-0000-000000000000/Interactables 4.mat
 - Assets/Uploads/00000000-0000-0000-0000-000000000000/Blaster.fbx
+- Assets/Uploads/00000000-0000-0000-0000-000000000000/Right Controller.prefab
 Dependencies: []

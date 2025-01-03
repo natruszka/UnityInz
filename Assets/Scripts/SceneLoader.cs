@@ -182,7 +182,17 @@ public class SceneLoader : MonoBehaviour
                 }
 
                 break;
-            
+            case "Prefab":
+                assetLoadRequest = _assetBundle.LoadAssetAsync<GameObject>(assetName);
+                yield return assetLoadRequest;
+
+                GameObject prefab = assetLoadRequest.asset as GameObject;
+                if (prefab != null)
+                {
+                    Instantiate(prefab, obj.transform, true);
+                }
+
+                break;
             default:
                 Debug.LogWarning($"Asset type '{assetType}' is not supported.");
                 break;

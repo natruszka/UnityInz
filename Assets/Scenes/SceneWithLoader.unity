@@ -152,9 +152,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 658f11d79b8817141bde23287c95fe36, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  AssetBundleName: /AssetsEditor
-  SceneBundleName: /ScenesEditor
-  DataLocation: Assets/Uploads/Data.json
 --- !u!4 &204403509
 Transform:
   m_ObjectHideFlags: 0
